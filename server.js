@@ -2,6 +2,9 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const axios = require("axios");
+
+const BACKEND = "http://192.168.7.8:8000/api/v1";
 
 const app = express();
 const server = http.createServer(app);
@@ -29,10 +32,12 @@ const PATH = [
 /**
  * Cars
  */
+const liveCars = {};
 const cars = [
   {
     id: "car-1",
     name: "Tesla Model Y",
+    deviceType: "car",
     driver: "Fang",
     pathIndex: 0,
     progress: 0,
@@ -49,6 +54,7 @@ const cars = [
   {
     id: "car-2",
     name: "Toyota Corolla",
+    deviceType: "car",
     driver: "Pang",
     pathIndex: 0,
     progress: 0,
@@ -160,21 +166,66 @@ function updateCar(car) {
  * Update loop (smooth)
  */
 setInterval(() => {
+  // 1️⃣ Update fake cars
   cars.forEach(updateCar);
 
+  // 2️⃣ Cleanup inactive real cars
+  const TIMEOUT = 10000; // 10 sec
+
+  Object.keys(liveCars).forEach((id) => {
+    if (Date.now() - liveCars[id].updatedAt > TIMEOUT) {
+      delete liveCars[id];
+    }
+  });
+
+  // 3️⃣ Prepare fake cars
+  const fakeCars = cars.map((c) => ({
+    id: c.id,
+    name: c.name,
+    deviceType: "car",
+    driver: c.driver,
+    lat: +c.lat.toFixed(6),
+    lon: +c.lon.toFixed(6),
+    heading: Math.round(c.heading),
+    speed: +(c.velocity * 3.6).toFixed(1),
+  }));
+
+  // 4️⃣ Get real cars
+  const realCars = Object.values(liveCars);
+
+  // 5️⃣ Emit everything together
   io.emit("location:update", {
     timestamp: Date.now(),
-    cars: cars.map((c) => ({
-      id: c.id,
-      name: c.name,
-      driver: c.driver,
-      lat: +c.lat.toFixed(6),
-      lon: +c.lon.toFixed(6),
-      heading: Math.round(c.heading),
-      speed: +(c.velocity * 3.6).toFixed(1), // 👈 km/h
-    })),
+    cars: [...fakeCars, ...realCars],
   });
 }, 100);
+
+setInterval(async () => {
+  const cars = Object.values(liveCars);
+
+  for (const car of cars) {
+    try {
+      await axios.put(
+        `${BACKEND}/streamings/${car.id}`,
+        {
+          latitude: car.lat,
+          longitude: car.lon,
+        },
+        {
+          headers: {
+            "x-api-key": "skyviv@dmin0nly",
+          },
+        },
+      );
+    } catch (err) {
+      console.error("Backend sync error:", err.message);
+    }
+  }
+
+  if (cars.length > 0) {
+    console.log("Synced to backend:", cars.length);
+  }
+}, 3000);
 
 /**
  * REST (initial state)
@@ -190,6 +241,7 @@ io.on("connection", (socket) => {
     cars.map((c) => ({
       id: c.id,
       name: c.name,
+      deviceType: "car",
       driver: c.driver,
       lat: c.lat,
       lon: c.lon,
@@ -197,10 +249,44 @@ io.on("connection", (socket) => {
       speed: +(c.velocity * 3.6).toFixed(1) ?? 0,
     })),
   );
+
+  // real car location
+  socket.on("car:location", (data) => {
+    const { id, name, driver, lat, lon, heading, speed } = data;
+
+    if (!id || typeof lat !== "number" || typeof lon !== "number") {
+      return;
+    }
+
+    const prev = liveCars[id];
+
+    let computedHeading = heading ?? 0;
+
+    if (prev) {
+      computedHeading = calculateHeading(
+        { lat: prev.lat, lon: prev.lon },
+        { lat, lon },
+      );
+    }
+
+    liveCars[id] = {
+      id,
+      name: name ?? "Real Car",
+      deviceType: "car",
+      driver: driver ?? "Unknown",
+      lat,
+      lon,
+      prevLat: prev?.lat ?? lat,
+      prevLon: prev?.lon ?? lon,
+      heading: computedHeading,
+      speed: speed ?? 0,
+      updatedAt: Date.now(),
+    };
+  });
 });
 
 PORT = 8001;
 
 server.listen(PORT, () => {
-  console.log(`Fake real-time car GPS running on port ${PORT}`);
+  console.log(`Real-time car GPS running on port ${PORT}`);
 });
