@@ -3,6 +3,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const axios = require("axios");
+const path = require("path");
 
 const BACKEND = "http://192.168.7.8:8000/api/v1";
 
@@ -29,6 +30,16 @@ const PATH = [
   { lon: 101.1191712, lat: 12.688914 },
 ];
 
+const PATH_UTAPAO = [
+  { lat: 12.683024, lon: 100.999069 },
+  { lat: 12.683280, lon: 100.996014 },
+  { lat: 12.679769, lon: 100.995677 },
+  { lat: 12.679586, lon: 100.997949 },
+  { lat: 12.681444, lon: 100.998099 },
+  { lat: 12.683142, lon: 100.998272 },
+  { lat: 12.683089, lon: 100.998900 },
+];
+
 /**
  * Cars
  */
@@ -50,6 +61,7 @@ const cars = [
     prevLon: PATH[0].lon,
     lastUpdate: Date.now(),
     velocity: 0,
+    path: PATH,
   },
   {
     id: "car-2",
@@ -67,6 +79,43 @@ const cars = [
     prevLon: PATH[0].lon,
     lastUpdate: Date.now(),
     velocity: 0,
+    path: PATH,
+  },
+  {
+    id: "car-3",
+    name: "Toyota Corolla",
+    deviceType: "car",
+    driver: "Earth",
+    pathIndex: 0,
+    progress: 0,
+    speed: 0.002,
+    startDelay: 2000,
+    started: false,
+    lat: PATH_UTAPAO[0].lat,
+    lon: PATH_UTAPAO[0].lon,
+    prevLat: PATH_UTAPAO[0].lat,
+    prevLon: PATH_UTAPAO[0].lon,
+    lastUpdate: Date.now(),
+    velocity: 0,
+    path: PATH_UTAPAO,
+  },
+  {
+    id: "car-4",
+    name: "Toyota Corolla",
+    deviceType: "car",
+    driver: "Few",
+    pathIndex: 0,
+    progress: 0,
+    speed: 0.0010,
+    startDelay: 4000,
+    started: false,
+    lat: PATH_UTAPAO[0].lat,
+    lon: PATH_UTAPAO[0].lon,
+    prevLat: PATH_UTAPAO[0].lat,
+    prevLon: PATH_UTAPAO[0].lon,
+    lastUpdate: Date.now(),
+    velocity: 0,
+    path: PATH_UTAPAO,
   },
 ];
 
@@ -127,29 +176,26 @@ function updateCar(car) {
   if (!car.started) return;
 
   const now = Date.now();
+  const path = car.path; // ✅ use car-specific path
 
   car.progress += car.speed;
 
   if (car.progress >= 1) {
-    car.progress -= 1; // keep remainder for smoothness
-    car.pathIndex = (car.pathIndex + 1) % PATH.length;
+    car.progress -= 1;
+    car.pathIndex = (car.pathIndex + 1) % path.length;
   }
 
-  const p1 = PATH[car.pathIndex];
-  const p2 = PATH[(car.pathIndex + 1) % PATH.length];
+  const p1 = path[car.pathIndex];
+  const p2 = path[(car.pathIndex + 1) % path.length];
 
-  // store previous position
   car.prevLat = car.lat;
   car.prevLon = car.lon;
 
-  // update position
   car.lat = lerp(p1.lat, p2.lat, car.progress);
   car.lon = lerp(p1.lon, p2.lon, car.progress);
 
-  // heading
   car.heading = calculateHeading(p1, p2);
 
-  // speed
   const dt = (now - car.lastUpdate) / 1000;
   if (dt > 0) {
     const dist = haversine(
