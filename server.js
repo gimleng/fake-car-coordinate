@@ -32,12 +32,20 @@ const PATH = [
 
 const PATH_UTAPAO = [
   { lat: 12.683024, lon: 100.999069 },
-  { lat: 12.683280, lon: 100.996014 },
+  { lat: 12.68328, lon: 100.996014 },
   { lat: 12.679769, lon: 100.995677 },
   { lat: 12.679586, lon: 100.997949 },
   { lat: 12.681444, lon: 100.998099 },
   { lat: 12.683142, lon: 100.998272 },
-  { lat: 12.683089, lon: 100.998900 },
+  { lat: 12.683089, lon: 100.9989 },
+];
+
+const PATH_AIRPORT_AREA = [
+  { lat: 12.683058929808258, lon: 100.99915805014926 },
+  { lat: 12.681858028045172, lon: 100.99908841359363 },
+  { lat: 12.681845166320562, lon: 100.99949301199753 },
+  { lat: 12.683020867351404, lon: 100.99951516463027 },
+  { lat: 12.683058929808258, lon: 100.99915805014926 },
 ];
 
 /**
@@ -106,7 +114,7 @@ const cars = [
     driver: "Few",
     pathIndex: 0,
     progress: 0,
-    speed: 0.0010,
+    speed: 0.001,
     startDelay: 4000,
     started: false,
     lat: PATH_UTAPAO[0].lat,
@@ -116,6 +124,24 @@ const cars = [
     lastUpdate: Date.now(),
     velocity: 0,
     path: PATH_UTAPAO,
+  },
+  {
+    id: "car-5",
+    name: "Toyota Yaris",
+    deviceType: "car",
+    driver: "Tor",
+    pathIndex: 0,
+    progress: 0,
+    speed: 0.005,
+    startDelay: 2000,
+    started: false,
+    lat: PATH_AIRPORT_AREA[0].lat,
+    lon: PATH_AIRPORT_AREA[0].lon,
+    prevLat: PATH_AIRPORT_AREA[0].lat,
+    prevLon: PATH_AIRPORT_AREA[0].lon,
+    lastUpdate: Date.now(),
+    velocity: 0,
+    path: PATH_AIRPORT_AREA,
   },
 ];
 
